@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Bot Player: one DLL. Shared settings, the shared code and the packed files: ../Directory.Build.props -->
+  <PropertyGroup>
+    <AssemblyName>BotPlayer</AssemblyName>
+    <RootNamespace>BotPlayer</RootNamespace>
+  </PropertyGroup>
+</Project>

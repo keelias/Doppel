@@ -1,0 +1,10 @@
+{
+    "name": "Doppel",
+    "version_number": "1.0.0",
+    "website_url": "",
+    "description": "Your double. Bots with a real player body that walk, climb, drive and fight with guns, melee and fists, and learn how to move and use things from recordings of you. By RUDYHILL.",
+    "dependencies": [
+        "LavaGang-MelonLoader-0.7.3",
+        "gnonme-BoneLib-3.1.3"
+    ]
+}

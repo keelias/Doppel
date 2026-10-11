@@ -1,0 +1,7 @@
+within=3.446
+size=0.246
+gap=1
+burst=1
+score=0.297
+runs=82
+kept=1

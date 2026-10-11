@@ -1,0 +1,10 @@
+pace=0.967
+side=0.8
+brake=3
+steer=1.3
+look=0.7
+grip=1.013
+early=1
+score=2.476
+runs=37
+kept=1

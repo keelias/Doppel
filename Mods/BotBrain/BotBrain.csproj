@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Bot Brain: everything the bot is and does. Not a mod of its own: the Bot Player mod (its
+    loader) loads it from UserData/Bot Player/live, and swaps in each new build while the game
+    runs. build_all.py puts it there, never in the game's Mods folder.
+    Shared settings, the shared code and the packed files: ../Directory.Build.props
+  -->
+  <PropertyGroup>
+    <AssemblyName>BotBrain</AssemblyName>
+    <RootNamespace>BotBrain</RootNamespace>
+    <DebugType>portable</DebugType>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- The navmeshes of the levels, to find its way about. -->
+    <Reference Include="UnityEngine.AIModule">
+      <HintPath>$(ManagedDir)\UnityEngine.AIModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <!-- (A gun is quick-loaded by an async task of this library.) -->
+    <Reference Include="Il2CppUniTask">
+      <HintPath>$(ManagedDir)\Il2CppUniTask.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <!-- The Portals mod (if it is there): its portals, as ways for the bots to take. -->
+    <Reference Include="Portals" Condition="Exists('$(GameDir)\Mods\Portals.dll')">
+      <HintPath>$(GameDir)\Mods\Portals.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+</Project>

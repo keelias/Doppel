@@ -1,0 +1,10 @@
+Idle=5
+Walk=5
+FastWalk=5
+Run=5
+Jump=5
+Crouch=5
+Climb=5
+Wave=5
+Reload=11
+Fire=11
