@@ -951,8 +951,9 @@ namespace ThirdEyeBonelabMod.Bots
                         }
                     }
                 }
-                else if (far > keep + 6f)
+                else if (far > keep + 6f && !(Partnered && YouFar() > PartnerLeash))
                 {
+                    // (Closing on a far-off target; not a partner already out of the player's reach: it shoots from where it is.)
                     move.y = MotionLibrary.WalkPush * 0.8f;
                 }
             }

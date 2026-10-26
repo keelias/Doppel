@@ -272,6 +272,23 @@ namespace ThirdEyeBonelabMod.Bots
 
         // ---------------------------------------------------------------- choosing
 
+        // ---------------------------------------------------------------- partner mode
+
+        // Partner mode (BotManager.StayNear, for the player's own bots): it keeps within reach of the
+        // player and does its own thinking inside that: fights what it sees, but does not chase it, or
+        // wander, off out of reach. How far it lets itself get from them (flat, metres): comfortably,
+        // and the most it will go before it comes back. (Both can be changed in lab/tuning.txt.)
+        private bool Partnered => BotManager.StayNear && !this.enemy;
+        private static float PartnerLeash => Tuning.F("partner.leash", 14f);
+        private static float PartnerMax => Tuning.F("partner.max", 26f);
+
+        /// <summary>How far the player is from it, along the ground (0 when there is no player to measure to).</summary>
+        private float YouFar()
+        {
+            Transform me = Head;
+            return Player.Head != null && me != null ? Flat(Player.Head.position - me.position).magnitude : 0f;
+        }
+
         // How fitting each goal is right now (before what it has learned), and why.
         private float Fit(Goal g, out string reason)
         {
@@ -284,6 +301,9 @@ namespace ThirdEyeBonelabMod.Bots
             {
                 case Goal.Fight:
                     reason = enemy ? "enemy " + nearestSeenDistance.ToString("0") + " m" + (seenEnemies.Count > 1 ? ", " + seenEnemies.Count + " seen" : "") : "";
+                    // (A partner well out of reach of the player, with nothing on top of it: it goes back to them, not on after it.)
+                    if (Partnered && enemy && you > PartnerMax && nearestSeenDistance > 6f)
+                        return 0.5f;
                     if (enemy && Armed)
                         return 0.9f;
                     // (Out of sight a moment only: still at it, not off looking and back again three times a second.)
@@ -320,6 +340,8 @@ namespace ThirdEyeBonelabMod.Bots
                     // was going for one and giving it up three times a second.)
                     if (Time.time < noGunUntil)
                         return 0f;
+                    if (Partnered && !enemy && you > PartnerLeash)
+                        return 0f;
                     return enemy || remembered ? 0.85f : hostiles.Count > 0 ? 0.6f : 0.25f;
                 case Goal.Investigate:
                     reason = this.enemy ? "after you" : "where it saw one";
@@ -327,17 +349,26 @@ namespace ThirdEyeBonelabMod.Bots
                     // (Seen or not: an unarmed one a way off has nothing better to do than get to them.)
                     if (this.enemy && Player.Head != null && Head != null && (Player.Head.position - Head.position).magnitude < Tuning.F("enemy.hunt", 90f))
                         return 0.62f;
+                    if (Partnered && remembered && Player.Head != null && Flat(lastEnemyAt - Player.Head.position).magnitude > PartnerLeash)
+                        return 0f;
                     return remembered ? 0.6f : 0f;
                 case Goal.Explore:
                     reason = "somewhere new";
-                    return 0.3f;
+                    // (A partner does not go exploring: it stays by the player.)
+                    return Partnered ? 0f : 0.3f;
                 case Goal.Follow:
                     reason = "keeping up with you";
                     // (Only when asked to stay by the player: left to itself it goes where it likes.)
+                    // (A partner out of reach comes back before anything else, short of what is on top of it.)
+                    if (Partnered)
+                        return you > PartnerMax ? 1.1f : you > PartnerLeash ? 0.8f : you > PartnerLeash * 0.6f ? 0.4f : 0.05f;
                     return !BotManager.StayNear ? 0f : you > 18f ? 0.7f : you > 10f ? 0.4f : 0.05f;
                 case Goal.Guard:
                     // With the player, watching their back while they fight (or wait).
                     reason = PlayerWatch.Fighting ? "watching your back" : "staying by you";
+                    // (A partner stays by the player, armed or not, and what it does about the player's fight is the rest of its brain's.)
+                    if (Partnered)
+                        return you < PartnerMax ? (PlayerWatch.Fighting && Armed ? 0.65f : hostiles.Count > 0 ? 0.35f : 0.2f) : 0f;
                     return Armed && you < 25f ? (PlayerWatch.Fighting ? 0.65f : !BotManager.StayNear ? 0f : hostiles.Count > 0 ? 0.35f : 0.12f) : 0f;
                 case Goal.Brawl:
                     // Bare-handed with one or two on it: fists up and into them.
@@ -354,10 +385,10 @@ namespace ThirdEyeBonelabMod.Bots
                     return enemy && !Armed && Time.time < noGunUntil && seenEnemies.Count < 3 && nearestSeenDistance < 20f ? 0.7f : 0f;
                 case Goal.Play:
                     reason = "bored";
-                    return !Armed && hostiles.Count == 0 ? 0.25f : 0f;
+                    return !Armed && hostiles.Count == 0 && !Partnered ? 0.25f : 0f;
                 case Goal.Practice:
                     reason = "target practice";
-                    return Armed && !enemy && Targets.Practice ? 0.3f : 0f;
+                    return Armed && !enemy && Targets.Practice && !Partnered ? 0.3f : 0f;
                 default:
                     reason = "looking around";
                     return 0.15f;

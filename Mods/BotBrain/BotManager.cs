@@ -137,7 +137,8 @@ namespace ThirdEyeBonelabMod.Bots
             page.CreateFunction("Spawn enemy bot (fights you)", Color.red, () => Spawn(true));
             page.CreateFunction("Remove bots", Color.red, RemoveAll);
             page.CreateFunction("Bring bots to me", Color.white, BringAll);
-            page.CreateFunction("Play on its own (brain)", Color.magenta, () => SetMode(Bot.Mode.Brain));
+            page.CreateFunction("Partner mode (stays near you, fights on its own)", Color.cyan, () => SetPartner(true));
+            page.CreateFunction("Play on its own (brain)", Color.magenta, () => SetPartner(false));
             page.CreateBool("Practise driving (learns by itself)", Color.magenta, DriveSkill.Practice, v => DriveSkill.Practice = v);
             page.CreateBool("Show what it is thinking", Color.magenta, ShowThoughts, v => ShowThoughts = v);
             recordToggle = page.CreateBool("Learn from me (watches everything you do)", Color.green, Recorder.Recording, SetLearning);
@@ -669,6 +670,14 @@ namespace ThirdEyeBonelabMod.Bots
                 bot.SetMode(mode);
         }
 
+        // Partner mode: its own brain, kept within reach of the player (see BotBrain). Turned on or off for
+        // every bot, and for the ones spawned after it, until the player chooses otherwise.
+        private static void SetPartner(bool on)
+        {
+            StayNear = on;
+            SetMode(Bot.Mode.Brain);
+        }
+
         private static void BringAll()
         {
             Transform head = Player.Head;
@@ -723,6 +732,9 @@ namespace ThirdEyeBonelabMod.Bots
                 }
                 else
                 {
+                    // (Partner mode chosen already: it comes ready, not standing about to be told.)
+                    if (StayNear)
+                        bot.SetMode(Bot.Mode.Brain);
                     Spawnables.Notify("Bot spawned: " + bot.personality.Describe());
                 }
             });
