@@ -33,6 +33,9 @@ to drive.
 | Remove bots / Bring bots to me | What they say. |
 | Play on its own | The bot decides what to do: roam, fight, pick things up, drive. |
 | Stand still / Follow me | What they say. |
+| Partner mode | The bots stay near you and fight on their own. Bots spawned after this come ready. |
+| Bots' avatar: use the one I have on | Friendly bots spawned from now on wear the avatar you have on now, whatever you change to after. Kept between games. |
+| Bots' avatar: copy mine again | Friendly bots copy the avatar you have on when they spawn, as before. |
 | Practise driving | Bots drive again and again and keep what works better. |
 | Show what it is thinking | A line of text over each bot's head. |
 | Learn from me | Watches everything you do and learns from it. |

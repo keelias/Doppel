@@ -293,6 +293,42 @@ namespace ThirdEyeBonelabMod.Bots
             }
         }
 
+        /// <summary>The avatar the player has on: its barcode, its scale and its name. False if it cannot be told.</summary>
+        public static bool PlayerAvatar(out string barcode, out Vector3 scale, out string name)
+        {
+            barcode = "";
+            scale = Vector3.one;
+            name = "";
+            try
+            {
+                RigManager player = Player.RigManager;
+                if (player == null || player.AvatarCrate == null || player.AvatarCrate.Barcode == null)
+                    return false;
+                barcode = player.AvatarCrate.Barcode.ID;
+                scale = player.avatar != null ? player.avatar.transform.localScale : Vector3.one;
+                name = player.avatar != null ? player.avatar.name.Replace("(Clone)", "").Trim() : barcode;
+                return !string.IsNullOrEmpty(barcode);
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+        /// <summary>Whether an avatar (by barcode) is there to be put on a bot (a modded one may have been taken out since).</summary>
+        public static bool CanUseAvatar(string barcode)
+        {
+            try
+            {
+                AssetWarehouse warehouse = AssetWarehouse.Instance;
+                return !string.IsNullOrEmpty(barcode) && warehouse != null && warehouse.TryGetCrate<AvatarCrate>(new Barcode(barcode), out AvatarCrate crate) && crate != null;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
         /// <summary>Puts an avatar (by barcode, at a scale) on the bot; done once it wears it.</summary>
         public static void UseAvatar(RigManager rig, string barcode, Vector3 scale, Action done)
         {

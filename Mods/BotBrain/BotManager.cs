@@ -27,6 +27,13 @@ namespace ThirdEyeBonelabMod.Bots
         /// <summary>Whether a bot playing on its own keeps near the player (off: it goes where it likes).</summary>
         public static bool StayNear;
 
+        // The avatar the player's own (friendly) bots are given when they spawn, chosen from the menu: the one the
+        // player has on at the time. Kept in UserData/(mod)/avatars.txt, so it lasts from one game to the next.
+        // Empty: they copy the avatar the player has on when they spawn, as before. (Enemy bots always do, for now.)
+        public static string FriendAvatar = "";
+        public static string FriendAvatarName = "";
+        public static Vector3 FriendAvatarScale = Vector3.one;
+
         /// <summary>Whether bots' fists (and shots) can hurt the player.</summary>
 
         private static Action<Grip, Hand> onGripOn;
@@ -133,6 +140,7 @@ namespace ThirdEyeBonelabMod.Bots
 
             // What the last build left: its settings, and its bots (their bodies are still about).
             Carried();
+            LoadAvatars();
             page.CreateFunction("Spawn bot", Color.green, () => Spawn(false));
             page.CreateFunction("Spawn enemy bot (fights you)", Color.red, () => Spawn(true));
             page.CreateFunction("Remove bots", Color.red, RemoveAll);
@@ -160,6 +168,8 @@ namespace ThirdEyeBonelabMod.Bots
                 foreach (Bot bot in bots.Values)
                     BotRig.CopyPlayerAvatar(bot.rig, null);
             });
+            page.CreateFunction("Bots' avatar: use the one I have on (friendly)", Color.green, SetFriendAvatar);
+            page.CreateFunction("Bots' avatar: copy mine again (friendly)", Color.white, ClearFriendAvatar);
         }
 
         // One switch for all its learning: your moves (recorded) and how you handle what you hold.
@@ -678,6 +688,110 @@ namespace ThirdEyeBonelabMod.Bots
             SetMode(Bot.Mode.Brain);
         }
 
+        // ---------------------------------------------------------------- the avatar of the player's bots
+
+        private static string AvatarFile => System.IO.Path.Combine(AssetFiles.SaveFolder(""), "avatars.txt");
+
+        /// <summary>The avatar the player has on becomes the one every friendly bot is given from now on (and the ones about now are given it).</summary>
+        private static void SetFriendAvatar()
+        {
+            if (!BotRig.PlayerAvatar(out string barcode, out Vector3 scale, out string name))
+            {
+                Spawnables.Notify("Could not tell which avatar you have on");
+                return;
+            }
+            FriendAvatar = barcode;
+            FriendAvatarScale = scale;
+            FriendAvatarName = name;
+            SaveAvatars();
+            foreach (Bot bot in bots.Values)
+            {
+                if (!bot.enemy)
+                    BotRig.UseAvatar(bot.rig, FriendAvatar, FriendAvatarScale, null);
+            }
+            Spawnables.Notify("Your bots will wear " + name + " from now on, whatever you have on");
+        }
+
+        /// <summary>Back to the way it was: a friendly bot copies the avatar the player has on when it spawns.</summary>
+        private static void ClearFriendAvatar()
+        {
+            FriendAvatar = "";
+            FriendAvatarName = "";
+            FriendAvatarScale = Vector3.one;
+            SaveAvatars();
+            Spawnables.Notify("Your bots copy the avatar you have on again");
+        }
+
+        private static void SaveAvatars()
+        {
+            try
+            {
+                if (FriendAvatar.Length == 0)
+                {
+                    if (System.IO.File.Exists(AvatarFile))
+                        System.IO.File.Delete(AvatarFile);
+                    return;
+                }
+                System.IO.Directory.CreateDirectory(AssetFiles.SaveFolder(""));
+                System.Globalization.CultureInfo c = System.Globalization.CultureInfo.InvariantCulture;
+                System.IO.File.WriteAllLines(AvatarFile, new[]
+                {
+                    "friend=" + FriendAvatar,
+                    "friend.name=" + FriendAvatarName,
+                    "friend.scale=" + FriendAvatarScale.x.ToString("R", c) + " " + FriendAvatarScale.y.ToString("R", c) + " " + FriendAvatarScale.z.ToString("R", c),
+                });
+            }
+            catch (Exception e)
+            {
+                MelonLogger.Warning("Doppel: could not save the avatar chosen for the bots: " + e.Message);
+            }
+        }
+
+        private static void LoadAvatars()
+        {
+            FriendAvatar = "";
+            FriendAvatarName = "";
+            FriendAvatarScale = Vector3.one;
+            try
+            {
+                if (!System.IO.File.Exists(AvatarFile))
+                    return;
+                System.Globalization.CultureInfo c = System.Globalization.CultureInfo.InvariantCulture;
+                foreach (string line in System.IO.File.ReadAllLines(AvatarFile))
+                {
+                    int eq = line.IndexOf('=');
+                    if (eq < 0)
+                        continue;
+                    string key = line.Substring(0, eq).Trim();
+                    string value = line.Substring(eq + 1).Trim();
+                    if (key == "friend")
+                    {
+                        FriendAvatar = value;
+                    }
+                    else if (key == "friend.name")
+                    {
+                        FriendAvatarName = value;
+                    }
+                    else if (key == "friend.scale")
+                    {
+                        string[] part = value.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                        if (part.Length == 3
+                            && float.TryParse(part[0], System.Globalization.NumberStyles.Float, c, out float x)
+                            && float.TryParse(part[1], System.Globalization.NumberStyles.Float, c, out float y)
+                            && float.TryParse(part[2], System.Globalization.NumberStyles.Float, c, out float z))
+                            FriendAvatarScale = new Vector3(x, y, z);
+                    }
+                }
+                if (FriendAvatarName.Length == 0)
+                    FriendAvatarName = FriendAvatar;
+            }
+            catch (Exception e)
+            {
+                MelonLogger.Warning("Doppel: could not read the avatar chosen for the bots: " + e.Message);
+                FriendAvatar = "";
+            }
+        }
+
         private static void BringAll()
         {
             Transform head = Player.Head;
@@ -723,7 +837,17 @@ namespace ThirdEyeBonelabMod.Bots
                     new GameObject(Bot.EnemyMark).transform.SetParent(rig.transform, false);
                 Bot bot = new Bot(rig, yaw);
                 bots[rig.Pointer] = bot;
-                BotRig.CopyPlayerAvatar(rig, null);
+                // (A friendly bot wears the avatar chosen for them, if there is one; otherwise, and always for an enemy, the player's own.)
+                if (!enemy && FriendAvatar.Length > 0 && BotRig.CanUseAvatar(FriendAvatar))
+                {
+                    BotRig.UseAvatar(rig, FriendAvatar, FriendAvatarScale, null);
+                }
+                else
+                {
+                    if (!enemy && FriendAvatar.Length > 0)
+                        Spawnables.Notify("The avatar chosen for your bots (" + FriendAvatarName + ") is not installed: this one has yours");
+                    BotRig.CopyPlayerAvatar(rig, null);
+                }
                 if (enemy)
                 {
                     // On its own, with its brain: it arms itself and comes for the player.
