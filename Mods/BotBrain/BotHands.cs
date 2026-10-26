@@ -172,6 +172,9 @@ namespace ThirdEyeBonelabMod.Bots
                     if (grip.HasAttachedHands() || since > Mathf.Max(3f, takesAt + 1.8f))
                     {
                         Lab.Event("hands: gave up reaching for the " + item.name + (grip.HasAttachedHands() ? " (a hand is on it)" : " (never got to it in " + since.ToString("0.0") + " s)"));
+                        // (Somebody else having it is not its failing.)
+                        if (!grip.HasAttachedHands())
+                            GrabFailed();
                         return EndPlay();
                     }
                     Vector3 target = grip.transform.position;
@@ -193,6 +196,8 @@ namespace ThirdEyeBonelabMod.Bots
                         }
                         if (Grab(hand, grip, turned))
                         {
+                            if (gun != null)
+                                grabFails.Remove(gun.Pointer);
                             holdFor = UnityEngine.Random.Range(2f, 5f);
                             if (gun != null)
                             {
@@ -213,6 +218,8 @@ namespace ThirdEyeBonelabMod.Bots
                         {
                             Lab.Event("hands: could not take the " + grip.name + " of the " + item.name + " (hand " + (hand.transform.position - target).magnitude.ToString("0.00") + " m from it, "
                                       + (hand.m_CurrentAttachedGO != null ? "holding " + hand.m_CurrentAttachedGO.name : "empty") + (grip.HasAttachedHands() ? ", a hand on it already" : "") + ", after " + since.ToString("0.0") + " s)");
+                            if (!grip.HasAttachedHands())
+                                GrabFailed();
                             return EndPlay();
                         }
                     }
@@ -312,6 +319,29 @@ namespace ThirdEyeBonelabMod.Bots
                     return true;
             }
             return EndPlay();
+        }
+
+        // A gun it reached for and could not get hold of: after a few goes (gun.grabfails, 4) it leaves that one alone
+        // for a couple of minutes (as one that would not load), instead of standing over it reaching again and again.
+        private static readonly Dictionary<IntPtr, int> grabFails = new Dictionary<IntPtr, int>();
+
+        private void GrabFailed()
+        {
+            if (gun == null)
+                return;
+            IntPtr key = gun.Pointer;
+            grabFails.TryGetValue(key, out int tries);
+            tries++;
+            if (tries >= Mathf.Max(1, Mathf.RoundToInt(Tuning.F("gun.grabfails", 4f))))
+            {
+                grabFails.Remove(key);
+                wontLoad[key] = Time.time;
+                Lab.Event("hands: gave up on the " + gun.name + " after " + tries + " tries at getting hold of it");
+            }
+            else
+            {
+                grabFails[key] = tries;
+            }
         }
 
         private void Next(Play state)
